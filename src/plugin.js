@@ -21,6 +21,11 @@ export default function WebpackMultiOutput(options: Object = {}): void {
     debug: false,
     ultraDebug: false,
     uglify: false,
+    replaceResourcePath: function(resourcePath, value) {  
+      const ext = path.extname(resourcePath)
+      const basename = path.basename(resourcePath, ext)
+      return resourcePath.replace(`${basename}${ext}`, `${value}${ext}`)
+    },
   }, options)
 
   this.options.assets = typeof options.assets === 'object' ? merge(baseAssets, options.assets) : false
@@ -65,9 +70,10 @@ WebpackMultiOutput.prototype.apply = function(compiler: Object): void {
 
           let _v = 0
 
+          // TODO: remove source if it doesn't already have one of the values in its name?
           this.options.values.forEach(value => {
             const basename = path.basename(file, '.js')
-            const filename = `${value}.${basename}.js`
+            const filename = `${value}.${basename}.js`;
 
             this.processSource(value, clone(source), (result) => {
               this.log(`Add asset ${filename}`)
@@ -225,10 +231,7 @@ WebpackMultiOutput.prototype.processSource = function(value: string, source: Obj
 
 WebpackMultiOutput.prototype.replaceContent = function(source: string, value: string, callback: Function): void {
   const resourcePath = this.getFilePath(source)
-  const ext = path.extname(resourcePath)
-  const basename = path.basename(resourcePath, ext)
-
-  let newResourcePath = resourcePath.replace(`${basename}${ext}`, `${value}${ext}`)
+  let newResourcePath = this.options.replaceResourcePath(resourcePath, value);
 
   fs.access(newResourcePath, (err) => {
     if (err) {
