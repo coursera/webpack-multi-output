@@ -70,10 +70,9 @@ WebpackMultiOutput.prototype.apply = function(compiler: Object): void {
 
           let _v = 0
 
-          // TODO: remove source if it doesn't already have one of the values in its name?
           this.options.values.forEach(value => {
             const basename = path.basename(file, '.js')
-            const filename = `${value}.${basename}.js`;
+            const filename = `${value}.${basename}.js`
 
             this.processSource(value, clone(source), (result) => {
               this.log(`Add asset ${filename}`)
