@@ -229,7 +229,7 @@ WebpackMultiOutput.prototype.processSource = function(value: string, source: Obj
 }
 
 WebpackMultiOutput.prototype.replaceContent = function(source: string, value: string, callback: Function): void {
-  const resourcePath = this.getFilePath(source)
+  const resourcePath = this.options.replaceResourcePath(this.getFilePath(source));
   let newResourcePath = this.options.replaceResourcePath(resourcePath, value);
 
   fs.access(newResourcePath, (err) => {
