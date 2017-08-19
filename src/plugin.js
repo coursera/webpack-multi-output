@@ -131,7 +131,7 @@ WebpackMultiOutput.prototype.apply = function(compiler: Object): void {
       `
 
       source[9] = source[9].replace('chunkId', 'webpackMultiOutputGetChunkId(chunkId)')
-      source.splice(source.length - 1, 0, chunkIdModifier)
+      source.splice(0, 0, chunkIdModifier)
 
       return source.join('\n')
     })
