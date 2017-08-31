@@ -77,7 +77,6 @@ WebpackMultiOutput.prototype.apply = function(compiler: Object): void {
             this.processSource(value, clone(source), (result) => {
               this.log(`Add asset ${filename}`)
               compilation.assets[filename] = result
-              compilation.additionalChunkAssets.push(filename);
               this.chunksMap[chunk.id] = true
               this.addedAssets.push({value, filename, name: chunk.name})
               if (chunk.name) {
