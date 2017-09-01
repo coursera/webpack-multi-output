@@ -232,29 +232,20 @@ WebpackMultiOutput.prototype.replaceContent = function(source: string, value: st
   const resourcePath = this.options.replaceResourcePath(this.getFilePath(source));
   let newResourcePath = this.options.replaceResourcePath(resourcePath, value);
 
-  fs.access(newResourcePath, (err) => {
-    if (err) {
-      newResourcePath = resourcePath
-    }
-
+  let content = '{}';
+  try {
     this.log(`Replacing content for ${newResourcePath}`, 'ultra')
-    fs.readFile(newResourcePath, 'utf-8', (err, content) => {
-      if (err) {
-        console.error(err)
-        callback(err)
-      }
+    content = require(newResourcePath);
+  } catch (_) {
+    try {
+      content = require(resourcePath);
+    } catch (e) {
+      callback(e);
+      return;
+    }
+  }
 
-      if (this.options.uglify) {
-        content = this.uglify(content)
-      }
-
-      callback(null, content)
-    })
-  })
-}
-
-WebpackMultiOutput.prototype.uglify = function(source: string): string {
-  return JSON.stringify(JSON.parse(source))
+  callback(null, JSON.stringify(content))
 }
 
 WebpackMultiOutput.prototype.replaceChunkMap = function(source: Object): string {
