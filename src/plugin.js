@@ -6,7 +6,7 @@ import {createHash} from 'crypto'
 import mkdirp from 'mkdirp'
 import clone from 'lodash.clone'
 import merge from 'lodash.merge'
-import {ConcatSource} from 'webpack-sources'
+import {ConcatSource, ReplaceSource, RawSource, SourceMapSource} from 'webpack-sources'
 import {forEachOfLimit, setImmediate as asyncSetImmediate} from 'async'
 
 const baseAssets = {
@@ -21,7 +21,7 @@ export default function WebpackMultiOutput(options: Object = {}): void {
     debug: false,
     ultraDebug: false,
     uglify: false,
-    replaceResourcePath: function(resourcePath, value) {  
+    replaceResourcePath: function(resourcePath, value) {
       const ext = path.extname(resourcePath)
       const basename = path.basename(resourcePath, ext)
       return resourcePath.replace(`${basename}${ext}`, `${value}${ext}`)
@@ -77,8 +77,10 @@ WebpackMultiOutput.prototype.apply = function(compiler: Object): void {
             this.processSource(value, clone(source), (result) => {
               this.log(`Add asset ${filename}`)
               compilation.assets[filename] = result
+              compilation.assets[`${filename}.map`] = new RawSource(JSON.stringify(result.map()));
               this.chunksMap[chunk.id] = true
               this.addedAssets.push({value, filename, name: chunk.name})
+
               if (chunk.name) {
                 if (this.needsHash) {
                   this.chunkHash = compilation.getStats().hash
@@ -89,7 +91,7 @@ WebpackMultiOutput.prototype.apply = function(compiler: Object): void {
 
               _v++
               _v === this.options.values.length && fileCallback()
-            })
+            }, filename)
           })
         }, chunkCallback)
       }, callback)
@@ -207,10 +209,21 @@ WebpackMultiOutput.prototype.getFilePath = function(string: string): string {
   return match ? match[1] : ''
 }
 
-WebpackMultiOutput.prototype.processSource = function(value: string, source: Object, callback: Function): void {
-  let _source = source.source()
-  const replaces = []
-  const matches = _source.match(this.filePathReG)
+WebpackMultiOutput.prototype.processSource = function(value: string, source: Object, callback: Function, filename: string): void {
+  let sourceMapSource;
+  let result;
+  let sourceIndex;
+  if (source.children) {
+    sourceIndex = source.children.findIndex(source => source.constructor.name === 'SourceMapSource');
+    sourceMapSource = source.children[sourceIndex];
+  } else {
+    sourceMapSource = source;
+  }
+
+  const _source = new ReplaceSource(sourceMapSource);
+
+  const matches = _source.source().match(this.filePathReG);
+  const replaces = [];
 
   forEachOfLimit(matches, 10, (match: string, k: number, cb: Function): void => {
     this.replaceContent(match, value, (err, result) => {
@@ -219,12 +232,38 @@ WebpackMultiOutput.prototype.processSource = function(value: string, source: Obj
     })
   }, () => {
     replaces.forEach(replace => {
-      _source = _source.replace(`"${replace.source}"`, replace.replace)
+      const startAt = _source.source().indexOf(replace.source);
+      _source.insert(startAt,replace.replace);
+      _source.replace(startAt-1, startAt + replace.source.length, '');
     })
 
-    _source = _source.replace(/__WEBPACK_MULTI_OUTPUT_VALUE__/g, value)
+      const startAt =  _source.source().indexOf('__WEBPACK_MULTI_OUTPUT_VALUE__');
+     _source.replace(startAt-1, startAt + '__WEBPACK_MULTI_OUTPUT_VALUE__'.length, '');
+     _source.insert(startAt, `"${value}"`);
 
-    callback(new ConcatSource(_source))
+
+    const sourceAndMap = new SourceMapSource(
+      _source.source(),
+      filename,
+      _source.map()
+    );
+
+    if (source.children) {
+      result = new ConcatSource();
+
+      source.children.forEach((source, index) => {
+        let item = source;
+        if (index === sourceIndex) {
+          item = sourceAndMap;
+        }
+        result.add(item);
+      });
+    } else {
+      result = new ConcatSource(sourceAndMap);
+     }
+      result.add(new RawSource(`\n//# sourceMappingURL=${filename}.map\n`));
+
+    callback(result);
   })
 }
 
