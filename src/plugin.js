@@ -240,7 +240,7 @@ WebpackMultiOutput.prototype.processSource = function(value: string, source: Obj
   let result;
   let sourceIndex;
   if (source.children) {
-    sourceIndex = source.children.findIndex(source => source.constructor.name === 'SourceMapSource');
+    sourceIndex = source.children.findIndex(source => source.constructor.name === 'SourceMapSource' || source.constructor.name === 'CachedSource');
     sourceMapSource = source.children[sourceIndex];
   } else {
     sourceMapSource = source;
