@@ -40,6 +40,19 @@ export default function WebpackMultiOutput(options: Object = {}): void {
   this.jsonpRe = /__WEBPACK_MULTI_OUTPUT_CHUNK_MAP__/
 }
 
+function replaceSnippetOnSource(source: object, match: string, replacement: string): Boolean {
+
+  const startAt = source.source().indexOf(match);
+
+  if (startAt >= 0) {
+    // we substract 1 out of the length given that the string pos starts in 0 :P
+    source.replace(startAt, startAt + match.length -1 , '');
+    source.insert(startAt, replacement);
+    return true;
+  }
+  return false;
+}
+
 WebpackMultiOutput.prototype.apply = function(compiler: Object): void {
   compiler.plugin('compilation', (compilation: Object): void => {
     compilation.__webpackMultiOutput = true
@@ -232,15 +245,14 @@ WebpackMultiOutput.prototype.processSource = function(value: string, source: Obj
     })
   }, () => {
     replaces.forEach(replace => {
-      const startAt = _source.source().indexOf(replace.source);
-      _source.insert(startAt,replace.replace);
-      _source.replace(startAt-1, startAt + replace.source.length, '');
-    })
+      const snippetToFind =`"${replace.source}"`;
 
-      const startAt =  _source.source().indexOf('__WEBPACK_MULTI_OUTPUT_VALUE__');
-     _source.replace(startAt-1, startAt + '__WEBPACK_MULTI_OUTPUT_VALUE__'.length, '');
-     _source.insert(startAt, `"${value}"`);
+      replaceSnippetOnSource(_source, snippetToFind, replace.replace);
+    });
 
+    const snippetToFind = '"__WEBPACK_MULTI_OUTPUT_VALUE__"';
+
+    replaceSnippetOnSource(_source, snippetToFind, `"${value}"`);
 
     const sourceAndMap = new SourceMapSource(
       _source.source(),
