@@ -40,14 +40,27 @@ export default function WebpackMultiOutput(options: Object = {}): void {
   this.jsonpRe = /__WEBPACK_MULTI_OUTPUT_CHUNK_MAP__/
 }
 
+function findAllOccurrences(str: string, find: string) {
+    const regex = new RegExp(find, 'g');
+    const indices = [];
+    let result;
+    while ((result = regex.exec(str))) {
+      indices.push(result.index);
+    }
+
+    return indices;
+}
 function replaceSnippetOnSource(source: object, match: string, replacement: string): Boolean {
+  const original = source._source.source();
+  const indexes = findAllOccurrences(original, match);
+  // we substract 1 out of the length given that the string pos starts in 0 :P
+  const offset = match.length - 1;
 
-  const startAt = source.source().indexOf(match);
-
-  if (startAt >= 0) {
-    // we substract 1 out of the length given that the string pos starts in 0 :P
-    source.replace(startAt, startAt + match.length -1 , '');
-    source.insert(startAt, replacement);
+  if (indexes.length) {
+    indexes.forEach((from) => {
+      source.replace(from, from + offset , '');
+      source.insert(from, replacement);
+    });
     return true;
   }
   return false;
@@ -233,9 +246,8 @@ WebpackMultiOutput.prototype.processSource = function(value: string, source: Obj
     sourceMapSource = source;
   }
 
+  const matches = sourceMapSource.source().match(this.filePathReG);
   const _source = new ReplaceSource(sourceMapSource);
-
-  const matches = _source.source().match(this.filePathReG);
   const replaces = [];
 
   forEachOfLimit(matches, 10, (match: string, k: number, cb: Function): void => {
