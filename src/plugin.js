@@ -262,9 +262,9 @@ WebpackMultiOutput.prototype.processSource = function(value: string, source: Obj
       replaceSnippetOnSource(_source, snippetToFind, replace.replace);
     });
 
-    const snippetToFind = '"__WEBPACK_MULTI_OUTPUT_VALUE__"';
+    const snippetToFind = '__WEBPACK_MULTI_OUTPUT_VALUE__';
 
-    replaceSnippetOnSource(_source, snippetToFind, `"${value}"`);
+    replaceSnippetOnSource(_source, snippetToFind, value);
 
     const sourceAndMap = new SourceMapSource(
       _source.source(),
