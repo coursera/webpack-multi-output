@@ -99,14 +99,20 @@ WebpackMultiOutput.prototype.apply = function(compiler: Object): void {
           this.options.values.forEach(value => {
             const basename = path.basename(file, '.js')
             const filename = `${value}.${basename}.js`
+            const sourceMapFilename = `${filename}.map`;
 
             this.processSource(value, clone(source), (result) => {
               this.log(`Add asset ${filename}`)
               compilation.assets[filename] = result
-              compilation.assets[`${filename}.map`] = new RawSource(JSON.stringify(result.map()));
+
               this.chunksMap[chunk.id] = true
               this.addedAssets.push({value, filename, name: chunk.name})
 
+              const sourceMap = result.map();
+
+              if (sourceMap.mappings) {
+                compilation.assets[sourceMapFilename] = new RawSource(JSON.stringify(sourceMap));
+              }
               if (chunk.name) {
                 if (this.needsHash) {
                   this.chunkHash = compilation.getStats().hash
@@ -236,18 +242,10 @@ WebpackMultiOutput.prototype.getFilePath = function(string: string): string {
 }
 
 WebpackMultiOutput.prototype.processSource = function(value: string, source: Object, callback: Function, filename: string): void {
-  let sourceMapSource;
   let result;
-  let sourceIndex;
-  if (source.children) {
-    sourceIndex = source.children.findIndex(source => source.constructor.name === 'SourceMapSource' || source.constructor.name === 'CachedSource');
-    sourceMapSource = source.children[sourceIndex];
-  } else {
-    sourceMapSource = source;
-  }
 
-  const matches = sourceMapSource.source().match(this.filePathReG);
-  const _source = new ReplaceSource(sourceMapSource);
+  const matches = source.source().match(this.filePathReG);
+  const _source = new ReplaceSource(source, filename);
   const replaces = [];
 
   forEachOfLimit(matches, 10, (match: string, k: number, cb: Function): void => {
@@ -257,8 +255,7 @@ WebpackMultiOutput.prototype.processSource = function(value: string, source: Obj
     })
   }, () => {
     replaces.forEach(replace => {
-      const snippetToFind =`"${replace.source}"`;
-
+      const snippetToFind = `"${replace.source}"`;
       replaceSnippetOnSource(_source, snippetToFind, replace.replace);
     });
 
@@ -272,20 +269,11 @@ WebpackMultiOutput.prototype.processSource = function(value: string, source: Obj
       _source.map()
     );
 
-    if (source.children) {
-      result = new ConcatSource();
+    result = new ConcatSource(sourceAndMap);
 
-      source.children.forEach((source, index) => {
-        let item = source;
-        if (index === sourceIndex) {
-          item = sourceAndMap;
-        }
-        result.add(item);
-      });
-    } else {
-      result = new ConcatSource(sourceAndMap);
-     }
+    if (result.map().mappings) {
       result.add(new RawSource(`\n//# sourceMappingURL=${filename}.map\n`));
+    }
 
     callback(result);
   })
