@@ -105,6 +105,8 @@ WebpackMultiOutput.prototype.apply = function(compiler: Object): void {
               this.log(`Add asset ${filename}`)
               compilation.assets[filename] = result
 
+              chunk.files.push(filename);
+
               this.chunksMap[chunk.id] = true
               this.addedAssets.push({value, filename, name: chunk.name})
 
@@ -270,10 +272,6 @@ WebpackMultiOutput.prototype.processSource = function(value: string, source: Obj
     );
 
     result = new ConcatSource(sourceAndMap);
-
-    if (result.map().mappings) {
-      result.add(new RawSource(`\n//# sourceMappingURL=${filename}.map\n`));
-    }
 
     callback(result);
   })
