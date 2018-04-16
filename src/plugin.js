@@ -265,7 +265,13 @@ WebpackMultiOutput.prototype.processSource = function(value: string, source: Obj
 
     replaceSnippetOnSource(_source, snippetToFind, value);
 
-    result = new ConcatSource(_source);
+    const sourceAndMap = new SourceMapSource(
+      _source.source(),
+      filename,
+      _source.map()
+    );
+
+    result = new ConcatSource(sourceAndMap);
 
     callback(result);
   })
