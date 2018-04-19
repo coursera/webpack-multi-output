@@ -105,16 +105,16 @@ WebpackMultiOutput.prototype.apply = function(compiler: Object): void {
               this.log(`Add asset ${filename}`)
               compilation.assets[filename] = result
 
-              chunk.files.push(filename);
-
               this.chunksMap[chunk.id] = true
               this.addedAssets.push({value, filename, name: chunk.name})
 
               const sourceMap = result.map();
 
               if (sourceMap.mappings) {
+                chunk.files.push(filename);
                 compilation.assets[sourceMapFilename] = new RawSource(JSON.stringify(sourceMap));
               }
+
               if (chunk.name) {
                 if (this.needsHash) {
                   this.chunkHash = compilation.getStats().hash
