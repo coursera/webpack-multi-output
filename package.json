@@ -1,6 +1,6 @@
 {
   "name": "@coursera/webpack-multi-output",
-  "version": "3.2.0",
+  "version": "3.2.1",
   "description": "Webpack loader and plugin to produce multiple bundle from one import",
   "main": "index.js",
   "author": "Romain Berger <romain@romainberger.com>",
