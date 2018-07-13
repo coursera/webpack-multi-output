@@ -6,8 +6,10 @@ import {createHash} from 'crypto'
 import mkdirp from 'mkdirp'
 import clone from 'lodash.clone'
 import merge from 'lodash.merge'
-import {ConcatSource, ReplaceSource, RawSource, SourceMapSource} from 'webpack-sources'
+import {ConcatSource, RawSource, SourceMapSource} from 'webpack-sources'
 import {forEachOfLimit, setImmediate as asyncSetImmediate} from 'async'
+
+import FasterReplaceSource from './FasterReplaceSource';
 
 const baseAssets = {
   filename: 'assets.json',
@@ -94,9 +96,7 @@ WebpackMultiOutput.prototype.apply = function(compiler: Object): void {
             return asyncSetImmediate(fileCallback)
           }
 
-          let _v = 0
-
-          this.options.values.forEach(value => {
+          forEachOfLimit(this.options.values, 5, (value: string, l: number, languageCallback: Function) => {
             const basename = path.basename(file, '.js')
             const filename = `${value}.${basename}.js`
             const sourceMapFilename = `${filename}.map`;
@@ -108,11 +108,14 @@ WebpackMultiOutput.prototype.apply = function(compiler: Object): void {
               this.chunksMap[chunk.id] = true
               this.addedAssets.push({value, filename, name: chunk.name})
 
-              const sourceMap = result.map();
+              if (value === 'en') {
+                const sourceMap = result.map();
 
-              if (sourceMap.mappings) {
-                chunk.files.push(filename);
-                compilation.assets[sourceMapFilename] = new RawSource(JSON.stringify(sourceMap));
+                if (sourceMap.mappings) {
+                  chunk.files.push(filename);
+                  compilation.assets[sourceMapFilename] = new RawSource(JSON.stringify(sourceMap));
+
+                }
               }
 
               if (chunk.name) {
@@ -123,10 +126,9 @@ WebpackMultiOutput.prototype.apply = function(compiler: Object): void {
                 this.addToAssetsMap(value, chunk.name, 'js', `${compilation.outputOptions.publicPath}${filename}`)
               }
 
-              _v++
-              _v === this.options.values.length && fileCallback()
+              languageCallback();
             }, filename)
-          })
+          }, fileCallback);
         }, chunkCallback)
       }, callback)
     })
@@ -243,11 +245,32 @@ WebpackMultiOutput.prototype.getFilePath = function(string: string): string {
   return match ? match[1] : ''
 }
 
-WebpackMultiOutput.prototype.processSource = function(value: string, source: Object, callback: Function, filename: string): void {
+WebpackMultiOutput.prototype.processRawSource = function(value: string, source: Object, callback: Function): void {
+  let _source = source.source()
+  const replaces = []
+  const matches = _source.match(this.filePathReG)
+
+  forEachOfLimit(matches, 10, (match: string, k: number, cb: Function): void => {
+    this.replaceContent(match, value, (err, result) => {
+      replaces.push({source: match, replace: result})
+      cb()
+    })
+  }, () => {
+    replaces.forEach(replace => {
+      _source = _source.replace(`"${replace.source}"`, replace.replace)
+    })
+
+    _source = _source.replace(/__WEBPACK_MULTI_OUTPUT_VALUE__/g, value)
+
+    callback(new ConcatSource(_source))
+  })
+}
+
+WebpackMultiOutput.prototype.processSourceWithSourceMap = function(value: string, source: Object, callback: Function, filename: string): void {
   let result;
 
   const matches = source.source().match(this.filePathReG);
-  const _source = new ReplaceSource(source, filename);
+  const _source = new FasterReplaceSource(source, filename);
   const replaces = [];
 
   forEachOfLimit(matches, 10, (match: string, k: number, cb: Function): void => {
@@ -265,16 +288,26 @@ WebpackMultiOutput.prototype.processSource = function(value: string, source: Obj
 
     replaceSnippetOnSource(_source, snippetToFind, value);
 
+    const { source: newSource, map: newMap } = _source.sourceAndMap();
+
     const sourceAndMap = new SourceMapSource(
-      _source.source(),
+      newSource,
       filename,
-      _source.map()
+      newMap
     );
 
     result = new ConcatSource(sourceAndMap);
 
     callback(result);
   })
+}
+
+WebpackMultiOutput.prototype.processSource = function(value: string, source: Object, callback: Function, filename: string): void {
+  if (value === 'en') {
+    return this.processSourceWithSourceMap(value, source, callback, filename);
+  } else {
+    return this.processRawSource(value, source, callback);
+  }
 }
 
 WebpackMultiOutput.prototype.replaceContent = function(source: string, value: string, callback: Function): void {
