@@ -8,6 +8,7 @@ import clone from 'lodash.clone'
 import merge from 'lodash.merge'
 import {ConcatSource, RawSource, SourceMapSource} from 'webpack-sources'
 import {forEachOfLimit, setImmediate as asyncSetImmediate} from 'async'
+import { matchObject } from 'webpack/lib/ModuleFilenameHelpers';
 
 import FasterReplaceSource from './FasterReplaceSource';
 
@@ -28,6 +29,7 @@ export default function WebpackMultiOutput(options: Object = {}): void {
       const basename = path.basename(resourcePath, ext)
       return resourcePath.replace(`${basename}${ext}`, `${value}${ext}`)
     },
+    sourceMaps: {},
   }, options)
 
   this.options.assets = typeof options.assets === 'object' ? merge(baseAssets, options.assets) : false
@@ -108,7 +110,7 @@ WebpackMultiOutput.prototype.apply = function(compiler: Object): void {
               this.chunksMap[chunk.id] = true
               this.addedAssets.push({value, filename, name: chunk.name})
 
-              if (value === 'en') {
+              if (matchObject(this.options.sourceMaps, filename)) {
                 const sourceMap = result.map();
 
                 if (sourceMap.mappings) {
@@ -303,7 +305,7 @@ WebpackMultiOutput.prototype.processSourceWithSourceMap = function(value: string
 }
 
 WebpackMultiOutput.prototype.processSource = function(value: string, source: Object, callback: Function, filename: string): void {
-  if (value === 'en') {
+  if (matchObject(this.options.sourceMaps, filename)) {
     return this.processSourceWithSourceMap(value, source, callback, filename);
   } else {
     return this.processRawSource(value, source, callback);
