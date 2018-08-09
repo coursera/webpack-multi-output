@@ -128,9 +128,7 @@ WebpackMultiOutput.prototype.apply = function(compiler: Object): void {
                 this.addToAssetsMap(value, chunk.name, 'js', `${compilation.outputOptions.publicPath}${filename}`)
               }
 
-              process.nextTick(() => {
-                languageCallback();
-              });
+              languageCallback()
             }, filename)
           }, fileCallback);
         }, chunkCallback)
