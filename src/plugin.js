@@ -161,19 +161,29 @@ WebpackMultiOutput.prototype.apply = function(compiler: Object): void {
       }, callback)
     })
 
-    compilation.mainTemplate.plugin('jsonp-script', (_: string): string => {
-      const source = _.split('\n')
+    compilation.mainTemplate.hooks.render.tap(
+      {
+				name: "JsonpMainTemplatePlugin chunkId replacement",
+				stage: Infinity
+			}, rawSource => {
+      const sourceString = rawSource.source()
+      if (!sourceString.includes('chunkId')) {
+        return rawSource;
+      } else {
+        const sourceArray = sourceString.split('\n')
 
-      const chunkIdModifier = `var webpackMultiOutputGetChunkId = function(chunkId) {
-        var map = {__WEBPACK_MULTI_OUTPUT_CHUNK_MAP__:2};
-        return map[chunkId] ? '__WEBPACK_MULTI_OUTPUT_VALUE__.' + chunkId : chunkId;
-      };
-      `
+        const chunkIdModifier = `var webpackMultiOutputGetChunkId = function(chunkId) {
+          var map = {__WEBPACK_MULTI_OUTPUT_CHUNK_MAP__:2};
+          return map[chunkId] ? '__WEBPACK_MULTI_OUTPUT_VALUE__.' + chunkId : chunkId;
+        };
+        `
+        const jsonpScriptSrcFunctionIndex = sourceArray.findIndex(a => a.includes('jsonpScriptSrc'))
 
-      source[9] = source[9].replace('chunkId', 'webpackMultiOutputGetChunkId(chunkId)')
-      source.splice(0, 0, chunkIdModifier)
+        sourceArray[jsonpScriptSrcFunctionIndex + 1] = sourceArray[jsonpScriptSrcFunctionIndex + 1].replace('chunkId', 'webpackMultiOutputGetChunkId(chunkId)')
+        sourceArray.splice(jsonpScriptSrcFunctionIndex + 1, 0, chunkIdModifier)
 
-      return source.join('\n')
+        return sourceArray.join('\n');
+      }
     })
   })
 
