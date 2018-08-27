@@ -162,6 +162,8 @@ WebpackMultiOutput.prototype.apply = function(compiler: Object): void {
     })
 
     compilation.mainTemplate.hooks.render.tap(
+      // NOTE: the `stage: Infinity` setting is necessary to make this hook run after the code that generates
+      // the webpack runtime, as otherwise we don't have the right content to replace...
       {
 				name: "JsonpMainTemplatePlugin chunkId replacement",
 				stage: Infinity
