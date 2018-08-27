@@ -167,9 +167,15 @@ WebpackMultiOutput.prototype.apply = function(compiler: Object): void {
 				stage: Infinity
 			}, rawSource => {
       const sourceString = rawSource.source()
-      if (!sourceString.includes('chunkId')) {
+      if (!sourceString.includes('jsonpScriptSrc')) {
         return rawSource;
       } else {
+        // HACK: Find the line containing `jsonpScriptSrc`, which looks like 
+        // /******/ 	function jsonpScriptSrc(chunkId) {
+        // /******/ 		return __webpack_require__.p + "" + ({$CHUNK_ID_TO_NAME_MAP}[chunkId]||chunkId) + ".js"
+        // /******/ 	}
+        // and replace `chunkId` with `webpackMultiOutputGetChunkId(chunkId)`, which attaches the locale 
+        // [specified in `__WEBPACK_MULTI_OUTPUT_CHUNK_MAP__`] if necessary.
         const sourceArray = sourceString.split('\n')
 
         const chunkIdModifier = `var webpackMultiOutputGetChunkId = function(chunkId) {
