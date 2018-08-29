@@ -1,6 +1,6 @@
 {
   "name": "@coursera/webpack-multi-output",
-  "version": "3.3.1",
+  "version": "4.0.0",
   "description": "Webpack loader and plugin to produce multiple bundle from one import",
   "main": "index.js",
   "author": "Romain Berger <romain@romainberger.com>",
@@ -34,7 +34,7 @@
     "moment": "^2.13.0",
     "path-exists": "^3.0.0",
     "style-loader": "^0.13.1",
-    "webpack": "^1.13.1",
+    "webpack": "^4.0.0",
     "webpack-rtl-plugin": "^1.1.1"
   },
   "dependencies": {
@@ -45,6 +45,6 @@
     "webpack-sources": "^0.1.1"
   },
   "peerDependencies": {
-    "webpack": "^1.13.1"
+    "webpack": "^4.0.0"
   }
 }
